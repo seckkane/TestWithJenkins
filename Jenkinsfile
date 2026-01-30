@@ -20,6 +20,13 @@ pipeline {
             }
         }
 
+        stage('Check JDK') {
+            steps {
+                sh 'java -version'
+                sh 'echo $JAVA_HOME'
+            }
+        }
+
         stage('Docker Build') {
             steps {
                 sh 'docker build -t jenkins-app:latest .'
