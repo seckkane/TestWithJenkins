@@ -1,6 +1,17 @@
 pipeline {
     agent any
 
+    tools {
+        jdk 'jdk-17'          // doit correspondre à ton JDK configuré dans Global Tool Configuration
+        maven 'Maven 3.6.3'   // si tu as configuré Maven ici
+    }
+
+    environment {
+        REMOTE_HOST = "192.168.56.20"
+        REMOTE_USER = "vagrant"
+        IMAGE_NAME  = "jenkins-app:latest"
+    }
+
     stages {
 
         stage('Checkout') {
@@ -9,23 +20,34 @@ pipeline {
             }
         }
 
+        stage('Check JDK') {
+            steps {
+                sh 'java -version'
+                sh 'echo $JAVA_HOME'
+            }
+        }
+
         stage('Build Maven') {
             steps {
-                sh 'mvn clean package'
+                sh '''
+                mvn clean package
+                '''
             }
         }
 
         stage('Docker Build') {
             steps {
-                sh 'docker build -t jenkins-app:latest .'
+                sh '''
+                docker build -t $IMAGE_NAME .
+                '''
             }
         }
 
         stage('Push Image to Remote') {
             steps {
                 sh '''
-                # On envoie directement l'image au serveur distant via SSH
-                docker save jenkins-app:latest | ssh vagrant@192.168.56.20 "docker load"
+                # Transfert de l'image vers docker-app-vm via SSH
+                docker save $IMAGE_NAME | ssh $REMOTE_USER@$REMOTE_HOST "docker load"
                 '''
             }
         }
@@ -33,10 +55,10 @@ pipeline {
         stage('Run Container Remote') {
             steps {
                 sh '''
-                ssh vagrant@192.168.56.20 "
+                ssh $REMOTE_USER@$REMOTE_HOST "
                     docker stop jenkins-app || true
                     docker rm jenkins-app || true
-                    docker run -d --name jenkins-app -p 9090:9090 jenkins-app:latest
+                    docker run -d --name jenkins-app -p 9090:9090 $IMAGE_NAME
                 "
                 '''
             }
@@ -44,9 +66,18 @@ pipeline {
 
         stage('Check Deployment') {
             steps {
-                echo "App should now be running on docker-app-vm: http://192.168.56.20:9090/hello"
+                echo "App should now be running on docker-app-vm: http://$REMOTE_HOST:9090/hello"
             }
         }
 
+    }
+
+    post {
+        success {
+            echo "Pipeline completed successfully! 🎉"
+        }
+        failure {
+            echo "Pipeline failed. Check logs! ⚠️"
+        }
     }
 }
