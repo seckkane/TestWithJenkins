@@ -3,7 +3,7 @@ pipeline {
 
     tools {
         jdk 'JDK 17'          // doit correspondre à ton JDK configuré dans Global Tool Configuration
-        maven 'Maven 3'   // si tu as configuré Maven ici
+        maven 'Maven 3'       // idem
     }
 
     environment {
@@ -15,9 +15,7 @@ pipeline {
     stages {
 
         stage('Checkout') {
-            steps {
-                checkout scm
-            }
+            steps { checkout scm }
         }
 
         stage('Check JDK') {
@@ -28,56 +26,42 @@ pipeline {
         }
 
         stage('Build Maven') {
-            steps {
-                sh '''
-                mvn clean package
-                '''
-            }
+            steps { sh 'mvn clean package' }
         }
 
         stage('Docker Build') {
-            steps {
-                sh '''
-                docker build -t $IMAGE_NAME .
-                '''
-            }
+            steps { sh "docker build -t $IMAGE_NAME ." }
         }
 
         stage('Push Image to Remote') {
             steps {
-                sh '''
-                # Transfert de l'image vers docker-app-vm via SSH
-                docker save $IMAGE_NAME | ssh $REMOTE_USER@$REMOTE_HOST "docker load"
-                '''
+                sh """
+                docker save $IMAGE_NAME | ssh $REMOTE_USER@$REMOTE_HOST 'docker load'
+                """
             }
         }
 
         stage('Run Container Remote') {
             steps {
-                sh '''
-                ssh $REMOTE_USER@$REMOTE_HOST "
+                sh """
+                ssh $REMOTE_USER@$REMOTE_HOST '
                     docker stop jenkins-app || true
                     docker rm jenkins-app || true
                     docker run -d --name jenkins-app -p 9090:9090 $IMAGE_NAME
-                "
-                '''
+                '
+                """
             }
         }
 
         stage('Check Deployment') {
             steps {
-                echo "App should now be running on docker-app-vm: http://$REMOTE_HOST:9090/hello"
+                echo "App running at: http://$REMOTE_HOST:9090/hello"
             }
         }
-
     }
 
     post {
-        success {
-            echo "Pipeline completed successfully! 🎉"
-        }
-        failure {
-            echo "Pipeline failed. Check logs! ⚠️"
-        }
+        success { echo "Pipeline completed successfully! 🎉" }
+        failure { echo "Pipeline failed. Check logs! ⚠️" }
     }
 }
