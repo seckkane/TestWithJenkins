@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     tools {
-        jdk 'jdk-17'          // doit correspondre à ton JDK configuré dans Global Tool Configuration
-        maven 'Maven 3.6.3'   // si tu as configuré Maven ici
+        jdk 'JDK 17'          // doit correspondre à ton JDK configuré dans Global Tool Configuration
+        maven 'Maven 3'   // si tu as configuré Maven ici
     }
 
     environment {
