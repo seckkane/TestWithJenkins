@@ -2,7 +2,8 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven 3' // le nom que tu as configuré dans Global Tool Configuration
+        maven 'Maven 3'  // ton Maven configuré
+        jdk 'JDK 17'     // la JDK configurée dans Global Tool Configuration
     }
 
     stages {
