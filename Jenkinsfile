@@ -2,14 +2,15 @@ pipeline {
     agent any
 
     tools {
-        jdk 'JDK 17'          // doit correspondre à ton JDK configuré dans Global Tool Configuration
-        maven 'Maven 3'       // idem
+        jdk 'JDK 17'
+        maven 'Maven 3'
     }
 
     environment {
-        REMOTE_HOST = "192.168.56.20"
-        REMOTE_USER = "vagrant"
+        REMOTE_HOST = "docker-app-vm"   // alias SSH
         IMAGE_NAME  = "jenkins-app:latest"
+        CONTAINER_NAME = "jenkins-app"
+        APP_PORT = "9090"
     }
 
     stages {
@@ -33,10 +34,24 @@ pipeline {
             steps { sh "docker build -t $IMAGE_NAME ." }
         }
 
+        stage('Check Docker on Remote') {
+            steps {
+                sh """
+                ssh $REMOTE_HOST '
+                    if ! command -v docker > /dev/null; then
+                        echo "Docker is not installed on remote host!"
+                        exit 1
+                    fi
+                    echo "Docker is installed ✅"
+                '
+                """
+            }
+        }
+
         stage('Push Image to Remote') {
             steps {
                 sh """
-                docker save $IMAGE_NAME | ssh $REMOTE_USER@$REMOTE_HOST 'docker load'
+                docker save $IMAGE_NAME | ssh $REMOTE_HOST 'docker load'
                 """
             }
         }
@@ -44,10 +59,23 @@ pipeline {
         stage('Run Container Remote') {
             steps {
                 sh """
-                ssh $REMOTE_USER@$REMOTE_HOST '
-                    docker stop jenkins-app || true
-                    docker rm jenkins-app || true
-                    docker run -d --name jenkins-app -p 9090:9090 $IMAGE_NAME
+                ssh $REMOTE_HOST '
+                    # Stop & remove old container if exists
+                    docker stop $CONTAINER_NAME || true
+                    docker rm $CONTAINER_NAME || true
+
+                    # Run new container
+                    docker run -d --name $CONTAINER_NAME -p $APP_PORT:$APP_PORT $IMAGE_NAME
+
+                    # Wait a few seconds to ensure container is up
+                    sleep 5
+
+                    # Display running container status
+                    docker ps | grep $CONTAINER_NAME
+
+                    # Show last 10 logs
+                    echo "Last 10 logs of $CONTAINER_NAME:"
+                    docker logs --tail 10 $CONTAINER_NAME
                 '
                 """
             }
@@ -55,7 +83,7 @@ pipeline {
 
         stage('Check Deployment') {
             steps {
-                echo "App running at: http://$REMOTE_HOST:9090/hello"
+                echo "App should be running at: http://$REMOTE_HOST:$APP_PORT/hello"
             }
         }
     }
