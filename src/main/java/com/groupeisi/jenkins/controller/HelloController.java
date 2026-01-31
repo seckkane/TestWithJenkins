@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class HelloController {
 
-    @GetMapping("/hello")
+    @GetMapping({"/", "/hello"}) // ou return "redirect:/hello";
     public String hello() {
         return "Hello from Spring Boot + Jenkins + Docker 🚀, UPDATED - For testing JENKINS";
     }
