@@ -34,6 +34,16 @@ pipeline {
             steps { sh "docker build -t $IMAGE_NAME ." }
         }
 
+        stage('Cleanup Docker on Jenkins VM') {
+            steps {
+                // Supprime les images inutilisées sur la VM Jenkins pour éviter de saturer le disque
+                sh """
+                echo "Cleaning dangling Docker images on Jenkins VM..."
+                docker image prune -f
+                """
+            }
+        }
+
         stage('Check Docker on Remote') {
             steps {
                 sh """
@@ -52,6 +62,16 @@ pipeline {
             steps {
                 sh """
                 docker save $IMAGE_NAME | ssh $REMOTE_HOST 'docker load'
+                """
+            }
+        }
+
+        stage('Cleanup Docker on Remote VM') {
+            steps {
+                // Supprime les images inutilisées sur la VM distante pour éviter de saturer le disque
+                sh """
+                echo "Cleaning dangling Docker images on remote host $REMOTE_HOST..."
+                ssh $REMOTE_HOST 'docker image prune -f'
                 """
             }
         }
